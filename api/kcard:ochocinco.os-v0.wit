@@ -1,0 +1,7 @@
+interface kcard {
+}
+
+world kcard-ochocinco-dot-os-v0 {
+    import kcard;
+    include process-v0;
+}

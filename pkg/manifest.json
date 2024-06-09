@@ -1,0 +1,27 @@
+[
+    {
+        "process_name": "kcard",
+        "process_wasm_path": "/kcard.wasm",
+        "on_exit": "Restart",
+        "request_networking": true,
+        "request_capabilities": [
+            "http_server:distro:sys",
+            "eth:distro:sys",
+            {
+                "process": "eth:distro:sys",
+                "params": {
+                    "root": true
+                }
+            },
+            "kernel:distro:sys",
+            "net:distro:sys"
+        ],
+        "grant_capabilities": [
+            "http_server:distro:sys",
+            "eth:distro:sys",
+            "kernel:distro:sys",
+            "net:distro:sys"
+        ],
+        "public": false
+    }
+]
