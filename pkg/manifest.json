@@ -5,7 +5,6 @@
         "on_exit": "Restart",
         "request_networking": true,
         "request_capabilities": [
-            "http_server:distro:sys",
             "eth:distro:sys",
             {
                 "process": "eth:distro:sys",
@@ -13,13 +12,16 @@
                     "root": true
                 }
             },
+            "http_server:distro:sys",
             "kernel:distro:sys",
+            "kns_indexer:kns_indexer:sys",
             "net:distro:sys"
         ],
         "grant_capabilities": [
-            "http_server:distro:sys",
             "eth:distro:sys",
+            "http_server:distro:sys",
             "kernel:distro:sys",
+            "kns_indexer:kns_indexer:sys",
             "net:distro:sys"
         ],
         "public": false
