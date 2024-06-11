@@ -38,7 +38,7 @@ struct KnsState {
 
 wit_bindgen::generate!({
     path: "target/wit",
-    world: "kcard-ochocinco-dot-os-v0",
+    world: "kcard-mothu-et-doria-dot-os-v0",
     generate_unused_types: true,
     additional_derives: [serde::Deserialize, serde::Serialize],
 });

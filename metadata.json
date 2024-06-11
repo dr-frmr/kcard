@@ -5,7 +5,7 @@
     "properties": {
         "package_name": "kcard",
         "current_version": "0.1.0",
-        "publisher": "ochocinco.os",
+        "publisher": "mothu-et-doria.os",
         "mirrors": [],
         "code_hashes": {
             "0.1.0": ""

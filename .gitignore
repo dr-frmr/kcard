@@ -7,3 +7,4 @@ pkg/*.wasm
 */wit/
 */process_env
 .DS_Store
+pkg/api.zip
