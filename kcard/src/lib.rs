@@ -1,7 +1,7 @@
 use kinode_process_lib::{
     call_init, eth, http,
     kernel_types::{KernelCommand, KernelPrint, KernelPrintResponse, KernelResponse},
-    net, println, Address, Message, Request,
+    net, println, Address, LazyLoadBlob, Message, Request,
 };
 
 const BACKGROUND: &[u8] = include_bytes!("redsunset.jpeg");
@@ -30,10 +30,15 @@ const BEAUTIFUL_BIRD: &str = r#"
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct KnsState {
     chain_id: u64,
-    contract_address: String,
+    // what contract this state pertains to
+    contract_address: eth::Address,
+    // namehash to human readable name
     names: std::collections::HashMap<String, String>,
+    // human readable name to most recent on-chain routing information as json
+    // TODO: optional params knsUpdate? also include tba.
     nodes: std::collections::HashMap<String, net::KnsUpdate>,
-    block: u64,
+    // last block we have an update from
+    last_block: u64,
 }
 
 wit_bindgen::generate!({
@@ -45,17 +50,24 @@ wit_bindgen::generate!({
 
 call_init!(init);
 fn init(our: Address) {
+    let mut server = http::server::HttpServer::new(5);
     loop {
         match fetch_data(&our) {
             Ok(text) => {
-                http::bind_http_static_path(
-                    "/kcard.png",
-                    false,
-                    false,
-                    Some("image/png".to_string()),
-                    write_text(our.node(), &text),
-                )
-                .expect("error binding http");
+                server
+                    .bind_http_path(
+                        "/kcard.png",
+                        http::server::HttpBindingConfig::new(
+                            false,
+                            false,
+                            false,
+                            Some(LazyLoadBlob::new(
+                                Some("image/png"),
+                                write_text(our.node(), &text),
+                            )),
+                        ),
+                    )
+                    .expect("error binding http");
             }
             Err(e) => {
                 println!("error fetching card data: {e:?}");

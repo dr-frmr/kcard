@@ -4,13 +4,15 @@
     "image": "",
     "properties": {
         "package_name": "kcard",
-        "current_version": "0.1.0",
-        "publisher": "mothu-et-doria.os",
+        "current_version": "0.2.0",
+        "publisher": "doria.kino",
         "mirrors": [
+            "doria.kino",
             "mothu-et-doria.os"
         ],
         "code_hashes": {
-            "0.1.0": "c47fb60c0d2c9f5bdc93ac050bac4cba01bf14c5faa6b2db6fe18f66b4ee638d"
+            "0.1.0": "c47fb60c0d2c9f5bdc93ac050bac4cba01bf14c5faa6b2db6fe18f66b4ee638d",
+            "0.2.0": "f747c92b8d1fffe939ee9e34bb3dae2fffeb53a8ab60c8ed90957f5a7c860af2"
         },
         "wit_version": 0,
         "dependencies": []
