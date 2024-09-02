@@ -177,10 +177,10 @@ fn fetch_data(our: &Address) -> anyhow::Result<String> {
         .body(rmp_serde::to_vec(&net::NetAction::GetPeer(our.node.clone())).unwrap())
         .send_and_await_response(60)
     else {
-        return Err(anyhow::anyhow!("failed to get response from net"));
+        return Err(anyhow::anyhow!("failed to get response from net (GetPeer)"));
     };
     let Ok(net::NetResponse::Peer(Some(our_id))) = rmp_serde::from_slice(&body) else {
-        return Err(anyhow::anyhow!("got malformed response from net"));
+        return Err(anyhow::anyhow!("got malformed response from net (GetPeer)"));
     };
 
     // get actively connected peers
@@ -190,10 +190,14 @@ fn fetch_data(our: &Address) -> anyhow::Result<String> {
         .send_and_await_response(60)
         .unwrap()
     else {
-        return Err(anyhow::anyhow!("failed to get response from net"));
+        return Err(anyhow::anyhow!(
+            "failed to get response from net (GetPeers)"
+        ));
     };
     let Ok(net::NetResponse::Peers(peers)) = rmp_serde::from_slice(&body) else {
-        return Err(anyhow::anyhow!("failed to parse net response"));
+        return Err(anyhow::anyhow!(
+            "got malformed response from net (GetPeers)"
+        ));
     };
     let connected_peers = peers.into_iter().map(|p| p.name).collect::<Vec<String>>();
 
@@ -204,10 +208,14 @@ fn fetch_data(our: &Address) -> anyhow::Result<String> {
         .send_and_await_response(60)
         .unwrap()
     else {
-        return Err(anyhow::anyhow!("failed to get response from eth"));
+        return Err(anyhow::anyhow!(
+            "failed to get response from eth (GetProviders)"
+        ));
     };
     let Ok(eth::EthConfigResponse::Providers(providers)) = serde_json::from_slice(&body) else {
-        return Err(anyhow::anyhow!("failed to parse eth response"));
+        return Err(anyhow::anyhow!(
+            "failed to parse eth response (GetProviders)"
+        ));
     };
 
     // get eth subs
@@ -217,14 +225,16 @@ fn fetch_data(our: &Address) -> anyhow::Result<String> {
         .send_and_await_response(60)
         .unwrap()
     else {
-        return Err(anyhow::anyhow!("failed to get response from eth"));
+        return Err(anyhow::anyhow!(
+            "failed to get response from eth (GetState)"
+        ));
     };
     let Ok(eth::EthConfigResponse::State {
         active_subscriptions,
         ..
     }) = serde_json::from_slice(&body)
     else {
-        return Err(anyhow::anyhow!("failed to parse eth response"));
+        return Err(anyhow::anyhow!("failed to parse eth response (GetState)"));
     };
 
     // get number of processes
@@ -234,12 +244,16 @@ fn fetch_data(our: &Address) -> anyhow::Result<String> {
         .send_and_await_response(60)
         .unwrap()
     else {
-        return Err(anyhow::anyhow!("failed to get response from kernel"));
+        return Err(anyhow::anyhow!(
+            "failed to get response from kernel (Debug(ProcessMap))"
+        ));
     };
     let Ok(KernelResponse::Debug(KernelPrintResponse::ProcessMap(map))) =
         serde_json::from_slice::<KernelResponse>(&body)
     else {
-        return Err(anyhow::anyhow!("failed to parse kernel response"));
+        return Err(anyhow::anyhow!(
+            "failed to parse kernel response (Debug(ProcessMap))"
+        ));
     };
     let num_processes = map.len();
     Ok(make_text(
@@ -330,10 +344,14 @@ fn fetch_kns_state() -> anyhow::Result<KnsState> {
             .send_and_await_response(60)
             .unwrap()
     else {
-        return Err(anyhow::anyhow!("failed to get response from kns_indexer"));
+        return Err(anyhow::anyhow!(
+            "failed to get response from kns_indexer (GetState)"
+        ));
     };
     let Ok(state) = serde_json::from_slice::<KnsState>(&body) else {
-        return Err(anyhow::anyhow!("failed to parse kns_indexer response"));
+        return Err(anyhow::anyhow!(
+            "failed to parse kns_indexer response (GetState)"
+        ));
     };
     Ok(state)
 }
