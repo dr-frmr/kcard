@@ -1,22 +1,21 @@
 {
     "name": "kcard",
-    "description": "generate a kcard!",
+    "description": "generate a kcard! -- displays a public image at <your_node_url>/kcard:kcard:doria.kino/kcard.png",
     "image": "",
     "properties": {
         "package_name": "kcard",
         "current_version": "0.2.0",
         "publisher": "doria.kino",
         "mirrors": [
-            "doria.kino",
-            "mothu-et-doria.os"
+            "doria.kino"
         ],
         "code_hashes": {
             "0.1.0": "c47fb60c0d2c9f5bdc93ac050bac4cba01bf14c5faa6b2db6fe18f66b4ee638d",
-            "0.2.0": "f747c92b8d1fffe939ee9e34bb3dae2fffeb53a8ab60c8ed90957f5a7c860af2"
+            "0.2.0": "b3536c43e319db5b14d5fe9e2fe773ccd0cd6bb57ad8950969f1140088068940"
         },
         "wit_version": 0,
         "dependencies": []
     },
-    "external_url": "",
+    "external_url": "https://github.com/dr-frmr/kcard",
     "animation_url": ""
 }
