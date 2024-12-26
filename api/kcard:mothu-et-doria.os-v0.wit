@@ -1,7 +1,0 @@
-interface kcard {
-}
-
-world kcard-mothu-et-doria-dot-os-v0 {
-    import kcard;
-    include process-v0;
-}

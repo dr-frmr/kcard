@@ -1,5 +1,5 @@
 use kinode_process_lib::{
-    call_init, eth, http,
+    call_init, eth, homepage, http,
     kernel_types::{KernelCommand, KernelPrint, KernelPrintResponse, KernelResponse},
     net, println, Address, LazyLoadBlob, Message, Request,
 };
@@ -26,31 +26,17 @@ const BEAUTIFUL_BIRD: &str = r#"
    .*`
 "#;
 
-/// From kns_indexer process
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-struct KnsState {
-    chain_id: u64,
-    // what contract this state pertains to
-    contract_address: eth::Address,
-    // namehash to human readable name
-    names: std::collections::HashMap<String, String>,
-    // human readable name to most recent on-chain routing information as json
-    // TODO: optional params knsUpdate? also include tba.
-    nodes: std::collections::HashMap<String, net::KnsUpdate>,
-    // last block we have an update from
-    last_block: u64,
-}
-
 wit_bindgen::generate!({
     path: "target/wit",
-    world: "kcard-mothu-et-doria-dot-os-v0",
+    world: "process-v1",
     generate_unused_types: true,
     additional_derives: [serde::Deserialize, serde::Serialize],
 });
 
 call_init!(init);
 fn init(our: Address) {
-    let mut server = http::server::HttpServer::new(5);
+    let mut server = http::server::HttpServer::new(30);
+    homepage::add_to_homepage("kcard", None, Some("/kcard.png"), None);
     loop {
         match fetch_data(&our) {
             Ok(text) => {
@@ -63,7 +49,7 @@ fn init(our: Address) {
                             false,
                             Some(LazyLoadBlob::new(
                                 Some("image/png"),
-                                write_text(our.node(), &text),
+                                render_kcard(our.node(), &text),
                             )),
                         ),
                     )
@@ -74,12 +60,12 @@ fn init(our: Address) {
             }
         }
 
-        // sleep 10 minutes then re-render
-        std::thread::sleep(std::time::Duration::from_secs(600));
+        // sleep 60 minutes then re-render
+        std::thread::sleep(std::time::Duration::from_secs(3600));
     }
 }
 
-fn write_text(our: &str, text: &str) -> Vec<u8> {
+fn render_kcard(our: &str, text: &str) -> Vec<u8> {
     // red sunset from https://www.metmuseum.org/art/collection/search/436833
     // public domain image
     let mut image = image::load_from_memory(BACKGROUND).expect("error loading background");
@@ -172,100 +158,12 @@ fn write_text(our: &str, text: &str) -> Vec<u8> {
 }
 
 fn fetch_data(our: &Address) -> anyhow::Result<String> {
-    // get identity
-    let Ok(Ok(Message::Response { body, .. })) = Request::to(("our", "net", "distro", "sys"))
-        .body(rmp_serde::to_vec(&net::NetAction::GetPeer(our.node.clone())).unwrap())
-        .send_and_await_response(60)
-    else {
-        return Err(anyhow::anyhow!("failed to get response from net (GetPeer)"));
-    };
-    let Ok(net::NetResponse::Peer(Some(our_id))) = rmp_serde::from_slice(&body) else {
-        return Err(anyhow::anyhow!("got malformed response from net (GetPeer)"));
-    };
-
-    // get actively connected peers
-    let Ok(Message::Response { body, .. }) = Request::new()
-        .target(("our", "net", "distro", "sys"))
-        .body(rmp_serde::to_vec(&net::NetAction::GetPeers).unwrap())
-        .send_and_await_response(60)
-        .unwrap()
-    else {
-        return Err(anyhow::anyhow!(
-            "failed to get response from net (GetPeers)"
-        ));
-    };
-    let Ok(net::NetResponse::Peers(peers)) = rmp_serde::from_slice(&body) else {
-        return Err(anyhow::anyhow!(
-            "got malformed response from net (GetPeers)"
-        ));
-    };
-    let connected_peers = peers.into_iter().map(|p| p.name).collect::<Vec<String>>();
-
-    // get eth providers
-    let Ok(Message::Response { body, .. }) = Request::new()
-        .target(("our", "eth", "distro", "sys"))
-        .body(serde_json::to_vec(&eth::EthConfigAction::GetProviders).unwrap())
-        .send_and_await_response(60)
-        .unwrap()
-    else {
-        return Err(anyhow::anyhow!(
-            "failed to get response from eth (GetProviders)"
-        ));
-    };
-    let Ok(eth::EthConfigResponse::Providers(providers)) = serde_json::from_slice(&body) else {
-        return Err(anyhow::anyhow!(
-            "failed to parse eth response (GetProviders)"
-        ));
-    };
-
-    // get eth subs
-    let Ok(Message::Response { body, .. }) = Request::new()
-        .target(("our", "eth", "distro", "sys"))
-        .body(serde_json::to_vec(&eth::EthConfigAction::GetState).unwrap())
-        .send_and_await_response(60)
-        .unwrap()
-    else {
-        return Err(anyhow::anyhow!(
-            "failed to get response from eth (GetState)"
-        ));
-    };
-    let Ok(eth::EthConfigResponse::State {
-        active_subscriptions,
-        ..
-    }) = serde_json::from_slice(&body)
-    else {
-        return Err(anyhow::anyhow!("failed to parse eth response (GetState)"));
-    };
-
-    // get number of processes
-    let Ok(Message::Response { body, .. }) = Request::new()
-        .target(("our", "kernel", "distro", "sys"))
-        .body(serde_json::to_vec(&KernelCommand::Debug(KernelPrint::ProcessMap)).unwrap())
-        .send_and_await_response(60)
-        .unwrap()
-    else {
-        return Err(anyhow::anyhow!(
-            "failed to get response from kernel (Debug(ProcessMap))"
-        ));
-    };
-    let Ok(KernelResponse::Debug(KernelPrintResponse::ProcessMap(map))) =
-        serde_json::from_slice::<KernelResponse>(&body)
-    else {
-        return Err(anyhow::anyhow!(
-            "failed to parse kernel response (Debug(ProcessMap))"
-        ));
-    };
-    let num_processes = map.len();
     Ok(make_text(
-        our_id,
-        connected_peers,
-        providers,
-        // sum up all the subscriptions
-        active_subscriptions
-            .values()
-            .map(|v| v.len())
-            .sum::<usize>(),
-        num_processes,
+        fetch_identity(our)?,
+        fetch_connected_peers()?,
+        fetch_eth_providers()?,
+        fetch_active_eth_subscriptions()?,
+        fetch_kernel_state()?,
         fetch_kns_state()?,
     ))
 }
@@ -276,7 +174,7 @@ fn make_text(
     providers: std::collections::HashSet<eth::ProviderConfig>,
     active_subscriptions: usize,
     num_processes: usize,
-    kns_state: KnsState,
+    kns_state: serde_json::Value,
 ) -> String {
     let mut providers = providers
         .into_iter()
@@ -302,7 +200,7 @@ fn make_text(
 ...and has {} active eth subscriptions.
 
 connected to {} peers out of {} known
-from kimap {}
+from kimap {:?}
 "#,
         num_processes,
         our_id.networking_key,
@@ -311,8 +209,22 @@ from kimap {}
         chain_ids,
         active_subscriptions,
         connected_peers.len(),
-        kns_state.nodes.len(),
-        kns_state.contract_address,
+        kns_state
+            .get("nodes")
+            .unwrap_or(&serde_json::Value::Array(vec![]))
+            .as_array()
+            .unwrap_or(&vec![])
+            .len(),
+        eth::Address::from_slice(
+            &kns_state
+                .get("contract_address")
+                .unwrap_or(&serde_json::Value::Array(vec![]))
+                .as_array()
+                .unwrap_or(&vec![])
+                .iter()
+                .map(|v| v.as_u64().unwrap_or(0) as u8)
+                .collect::<Vec<u8>>()
+        ),
     )
 }
 
@@ -328,9 +240,105 @@ fn routing_to_string(routing: net::NodeRouting) -> String {
     }
 }
 
-fn fetch_kns_state() -> anyhow::Result<KnsState> {
+fn fetch_identity(our: &Address) -> anyhow::Result<net::Identity> {
+    // get identity
+    let Ok(Ok(Message::Response { body, .. })) = Request::to(("our", "net", "distro", "sys"))
+        .body(rmp_serde::to_vec(&net::NetAction::GetPeer(our.node.clone())).unwrap())
+        .send_and_await_response(60)
+    else {
+        return Err(anyhow::anyhow!("failed to get response from net (GetPeer)"));
+    };
+    let Ok(net::NetResponse::Peer(Some(our_id))) = rmp_serde::from_slice(&body) else {
+        return Err(anyhow::anyhow!("got malformed response from net (GetPeer)"));
+    };
+    Ok(our_id)
+}
+
+fn fetch_connected_peers() -> anyhow::Result<Vec<String>> {
+    // get actively connected peers
+    let Ok(Message::Response { body, .. }) = Request::new()
+        .target(("our", "net", "distro", "sys"))
+        .body(rmp_serde::to_vec(&net::NetAction::GetPeers).unwrap())
+        .send_and_await_response(60)
+        .unwrap()
+    else {
+        return Err(anyhow::anyhow!(
+            "failed to get response from net (GetPeers)"
+        ));
+    };
+    let Ok(net::NetResponse::Peers(peers)) = rmp_serde::from_slice(&body) else {
+        return Err(anyhow::anyhow!(
+            "got malformed response from net (GetPeers)"
+        ));
+    };
+    Ok(peers.into_iter().map(|p| p.name).collect::<Vec<String>>())
+}
+
+fn fetch_eth_providers() -> anyhow::Result<std::collections::HashSet<eth::ProviderConfig>> {
+    // get eth providers
+    let Ok(Message::Response { body, .. }) = Request::new()
+        .target(("our", "eth", "distro", "sys"))
+        .body(serde_json::to_vec(&eth::EthConfigAction::GetProviders).unwrap())
+        .send_and_await_response(60)
+        .unwrap()
+    else {
+        return Err(anyhow::anyhow!(
+            "failed to get response from eth (GetProviders)"
+        ));
+    };
+    let Ok(eth::EthConfigResponse::Providers(providers)) = serde_json::from_slice(&body) else {
+        return Err(anyhow::anyhow!(
+            "failed to parse eth response (GetProviders)"
+        ));
+    };
+    Ok(providers)
+}
+
+fn fetch_active_eth_subscriptions() -> anyhow::Result<usize> {
+    let Ok(Message::Response { body, .. }) = Request::new()
+        .target(("our", "eth", "distro", "sys"))
+        .body(serde_json::to_vec(&eth::EthConfigAction::GetState).unwrap())
+        .send_and_await_response(60)
+        .unwrap()
+    else {
+        return Err(anyhow::anyhow!(
+            "failed to get response from eth (GetState)"
+        ));
+    };
+    let Ok(eth::EthConfigResponse::State {
+        active_subscriptions,
+        ..
+    }) = serde_json::from_slice(&body)
+    else {
+        return Err(anyhow::anyhow!("failed to parse eth response (GetState)"));
+    };
+
+    Ok(active_subscriptions
+        .values()
+        .map(|v| v.len())
+        .sum::<usize>())
+}
+
+fn fetch_kernel_state() -> anyhow::Result<usize> {
+    let Ok(Message::Response { body, .. }) = Request::new()
+        .target(("our", "kernel", "distro", "sys"))
+        .body(serde_json::to_vec(&KernelCommand::Debug(KernelPrint::ProcessMap)).unwrap())
+        .send_and_await_response(60)
+        .unwrap()
+    else {
+        return Err(anyhow::anyhow!("failed to get response from kernel"));
+    };
+    let Ok(KernelResponse::Debug(KernelPrintResponse::ProcessMap(map))) =
+        serde_json::from_slice::<KernelResponse>(&body)
+    else {
+        return Err(anyhow::anyhow!("failed to parse kernel response"));
+    };
+    Ok(map.len())
+}
+
+fn fetch_kns_state() -> anyhow::Result<serde_json::Value> {
     let Ok(Message::Response { body, .. }) =
-        Request::to(("our", "kns_indexer", "kns_indexer", "sys"))
+        Request::to(("our", "kns-indexer", "kns-indexer", "sys"))
             .body(
                 serde_json::json!({
                     "GetState": {
@@ -345,13 +353,18 @@ fn fetch_kns_state() -> anyhow::Result<KnsState> {
             .unwrap()
     else {
         return Err(anyhow::anyhow!(
-            "failed to get response from kns_indexer (GetState)"
+            "failed to get response from kns-indexer (GetState)"
         ));
     };
-    let Ok(state) = serde_json::from_slice::<KnsState>(&body) else {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) else {
         return Err(anyhow::anyhow!(
-            "failed to parse kns_indexer response (GetState)"
+            "failed to parse kns-indexer response (GetState)"
         ));
     };
-    Ok(state)
+    let Some(inner) = value.get("GetState") else {
+        return Err(anyhow::anyhow!(
+            "failed to parse kns-indexer response (GetState)"
+        ));
+    };
+    Ok(inner.to_owned())
 }
