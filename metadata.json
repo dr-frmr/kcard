@@ -4,7 +4,7 @@
     "image": "",
     "properties": {
         "package_name": "kcard",
-        "current_version": "0.3.0",
+        "current_version": "0.3.1",
         "publisher": "doria.kino",
         "mirrors": [
             "doria.kino"
@@ -12,7 +12,8 @@
         "code_hashes": {
             "0.1.0": "c47fb60c0d2c9f5bdc93ac050bac4cba01bf14c5faa6b2db6fe18f66b4ee638d",
             "0.2.0": "b3536c43e319db5b14d5fe9e2fe773ccd0cd6bb57ad8950969f1140088068940",
-            "0.3.0": "8f52992a99d750868655bc7b9825c61ca2956fb2a31ef2ce83e6ff34a0d190d2"
+            "0.3.0": "8f52992a99d750868655bc7b9825c61ca2956fb2a31ef2ce83e6ff34a0d190d2",
+            "0.3.1": "58291fb02113b9f632f83bd161b6bda20b25953276cdcbbe2121d0333bf95202"
         },
         "wit_version": 1,
         "dependencies": []
