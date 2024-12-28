@@ -3,7 +3,7 @@
         "process_name": "kcard",
         "process_wasm_path": "/kcard.wasm",
         "on_exit": "Restart",
-        "request_networking": false,
+        "request_networking": true,
         "request_capabilities": [
             "eth:distro:sys",
             {
